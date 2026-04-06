@@ -627,6 +627,24 @@ static const size_t SENSOR_TABLE_SIZE = (sizeof(SENSOR_TABLE) / sizeof(SENSOR_TA
 // crashes caused by absent or misbehaving hardware.
 // ============================================================
 
+#if ENV_INCLUDE_GPS
+static void beginGPSUART() {
+  Serial1.setPins(PIN_GPS_TX, PIN_GPS_RX);
+
+  #ifdef GPS_BAUD_RATE
+  Serial1.begin(GPS_BAUD_RATE);
+  #else
+  Serial1.begin(9600);
+  #endif
+}
+
+static void endGPSUART() {
+#if GPS_SERIAL_SUSPEND_WHEN_STOPPED
+  Serial1.end();
+#endif
+}
+#endif
+
 bool EnvironmentSensorManager::begin() {
   #if ENV_INCLUDE_GPS
   #ifdef RAK_WISBLOCK_GPS
