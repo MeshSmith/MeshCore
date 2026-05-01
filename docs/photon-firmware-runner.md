@@ -8,9 +8,9 @@ Register the runner in this repository with these labels:
 
 - `self-hosted`
 - `linux`
-- `washtastic-firmware`
+- `photon-firmware`
 
-GitHub automatically adds `self-hosted` and the operating-system label. Add `washtastic-firmware` as the custom label so the workflow can pick the runner.
+GitHub automatically adds `self-hosted` and the operating-system label. Add `photon-firmware` as the custom label so the workflow can pick the runner.
 
 ## Workflow
 
