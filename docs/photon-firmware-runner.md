@@ -16,6 +16,8 @@ GitHub automatically adds `self-hosted` and the operating-system label. Add `pho
 
 Run `.github/workflows/build-photon-firmwares.yml` manually from the Actions tab. The optional `firmware_version` input controls the artifact filenames. If it is omitted, the workflow falls back to the latest tag and then to `manual-<sha>`.
 
+By default, each successful build also publishes a GitHub Release. The release tag defaults to `photon-nrf52-<branch>-<version>`, so builds from `PowerSaving-v15-meshsmith-photon-nrf52` and `V1.15.0-meshsmith-photon-nrf52` do not collide. Override `release_tag` or disable `publish_release` from the manual workflow form when needed.
+
 The workflow targets the `meshsmith_photon_nrf52...` PlatformIO environments and uploads UF2 and ZIP artifacts from `out/`:
 
 - `Photon-nRF52-Companion-BLE-<version>.uf2`
@@ -30,6 +32,9 @@ The workflow targets the `meshsmith_photon_nrf52...` PlatformIO environments and
 - `Photon-nRF52-Room-Server-<version>.zip`
 - `Photon-nRF52-Room-Server-<version>-logging.uf2`
 - `Photon-nRF52-Room-Server-<version>-logging.zip`
+- `photon-nrf52-firmware-manifest.json`
+
+The manifest is intended for tools such as a web flasher. A flasher can query GitHub Releases, filter tags that start with `photon-nrf52-`, and read this manifest asset to display available firmware files.
 
 ## Runner Host Notes
 
