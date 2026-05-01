@@ -773,6 +773,7 @@
 <p>GitHub automatically adds <code>self-hosted</code> and the operating-system label. Add <code>photon-firmware</code> as the custom label so the workflow can pick the runner.</p>
 <h2 id="workflow">Workflow</h2>
 <p>Run <code>.github/workflows/build-photon-firmwares.yml</code> manually from the Actions tab. The optional <code>firmware_version</code> input controls the artifact filenames. If it is omitted, the workflow falls back to the latest tag and then to <code>manual-&lt;sha&gt;</code>.</p>
+<p>By default, each successful build also publishes a GitHub Release. The release tag defaults to <code>photon-nrf52-&lt;branch&gt;-&lt;version&gt;</code>, so builds from <code>PowerSaving-v15-meshsmith-photon-nrf52</code> and <code>V1.15.0-meshsmith-photon-nrf52</code> do not collide. Override <code>release_tag</code> or disable <code>publish_release</code> from the manual workflow form when needed.</p>
 <p>The workflow targets the <code>meshsmith_photon_nrf52...</code> PlatformIO environments and uploads UF2 and ZIP artifacts from <code>out/</code>:</p>
 <ul>
 <li><code>Photon-nRF52-Companion-BLE-&lt;version&gt;.uf2</code></li>
@@ -787,7 +788,9 @@
 <li><code>Photon-nRF52-Room-Server-&lt;version&gt;.zip</code></li>
 <li><code>Photon-nRF52-Room-Server-&lt;version&gt;-logging.uf2</code></li>
 <li><code>Photon-nRF52-Room-Server-&lt;version&gt;-logging.zip</code></li>
+<li><code>photon-nrf52-firmware-manifest.json</code></li>
 </ul>
+<p>The manifest is intended for tools such as a web flasher. A flasher can query GitHub Releases, filter tags that start with <code>photon-nrf52-</code>, and read this manifest asset to display available firmware files.</p>
 <h2 id="runner-host-notes">Runner Host Notes</h2>
 <p>Use a Linux host with enough disk space for PlatformIO build caches. The workflow installs Python 3.11 and PlatformIO through the shared <code>setup-build-environment</code> action, so the host mainly needs a working shell, GitHub Actions runner service, Python setup support, and internet access for dependency downloads.</p>
 
