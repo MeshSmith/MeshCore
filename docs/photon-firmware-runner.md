@@ -16,20 +16,20 @@ GitHub automatically adds `self-hosted` and the operating-system label. Add `pho
 
 Run `.github/workflows/build-photon-firmwares.yml` manually from the Actions tab. The optional `firmware_version` input controls the artifact filenames. If it is omitted, the workflow falls back to the latest tag and then to `manual-<sha>`.
 
-The workflow uploads UF2 and ZIP artifacts from `out/`:
+The workflow targets the `meshsmith_photon_nrf52...` PlatformIO environments and uploads UF2 and ZIP artifacts from `out/`:
 
-- `Photon-Companion-BLE-<version>.uf2`
-- `Photon-Companion-BLE-<version>.zip`
-- `Photon-Companion-USB-<version>.uf2`
-- `Photon-Companion-USB-<version>.zip`
-- `Photon-Repeater-<version>.uf2`
-- `Photon-Repeater-<version>.zip`
-- `Photon-Repeater-<version>-logging.uf2`
-- `Photon-Repeater-<version>-logging.zip`
-- `Photon-Room-Server-<version>.uf2`
-- `Photon-Room-Server-<version>.zip`
-- `Photon-Room-Server-<version>-logging.uf2`
-- `Photon-Room-Server-<version>-logging.zip`
+- `Photon-nRF52-Companion-BLE-<version>.uf2`
+- `Photon-nRF52-Companion-BLE-<version>.zip`
+- `Photon-nRF52-Companion-USB-<version>.uf2`
+- `Photon-nRF52-Companion-USB-<version>.zip`
+- `Photon-nRF52-Repeater-<version>.uf2`
+- `Photon-nRF52-Repeater-<version>.zip`
+- `Photon-nRF52-Repeater-<version>-logging.uf2`
+- `Photon-nRF52-Repeater-<version>-logging.zip`
+- `Photon-nRF52-Room-Server-<version>.uf2`
+- `Photon-nRF52-Room-Server-<version>.zip`
+- `Photon-nRF52-Room-Server-<version>-logging.uf2`
+- `Photon-nRF52-Room-Server-<version>-logging.zip`
 
 ## Runner Host Notes
 
