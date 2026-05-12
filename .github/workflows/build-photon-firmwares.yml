@@ -13,7 +13,7 @@ on:
         default: true
         type: boolean
       release_tag:
-        description: "Optional release tag. Defaults to photon-nrf52-<branch>-<version>"
+        description: "Optional release tag. Defaults to photon-esp32-c6-<branch>-<version>"
         required: false
         type: string
       release_name:
@@ -76,13 +76,13 @@ jobs:
           if [ -n "${RELEASE_TAG_INPUT}" ]; then
             release_tag="${RELEASE_TAG_INPUT}"
           else
-            release_tag="photon-nrf52-${ref_slug}-${version_slug}"
+            release_tag="photon-esp32-c6-${ref_slug}-${version_slug}"
           fi
 
           if [ -n "${RELEASE_NAME_INPUT}" ]; then
             release_name="${RELEASE_NAME_INPUT}"
           else
-            release_name="Photon nRF52 ${GITHUB_REF_NAME:-manual} ${FIRMWARE_VERSION}"
+            release_name="Photon ESP32-C6 ${GITHUB_REF_NAME:-manual} ${FIRMWARE_VERSION}"
           fi
 
           echo "RELEASE_TAG=${release_tag}" >> "${GITHUB_ENV}"
@@ -123,7 +123,7 @@ jobs:
 
           manifest = {
               "product": "MeshSmith Photon",
-              "mcu": "nRF52",
+              "mcu": "ESP32-C6",
               "firmware_version": os.environ["FIRMWARE_VERSION"],
               "release_tag": os.environ["RELEASE_TAG"],
               "release_name": os.environ["RELEASE_NAME"],
@@ -133,7 +133,7 @@ jobs:
               "assets": files,
           }
 
-          manifest_path = out_dir / "photon-nrf52-firmware-manifest.json"
+          manifest_path = out_dir / "photon-esp32-c6-firmware-manifest.json"
           manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
           print(f"Wrote {manifest_path}")
           PY
@@ -141,7 +141,7 @@ jobs:
       - name: Upload Workflow Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: photon-firmwares-${{ env.FIRMWARE_VERSION }}
+          name: photon-esp32-c6-firmwares-${{ env.FIRMWARE_VERSION }}
           path: out/*
           if-no-files-found: error
 
@@ -157,7 +157,7 @@ jobs:
           fail_on_unmatched_files: true
           overwrite_files: true
           body: |
-            MeshSmith Photon nRF52 firmware build.
+            MeshSmith Photon ESP32-C6 firmware build.
 
             - Firmware version: `${{ env.FIRMWARE_VERSION }}`
             - Source ref: `${{ github.ref_name }}`
