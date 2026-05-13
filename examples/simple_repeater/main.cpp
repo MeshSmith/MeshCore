@@ -18,6 +18,7 @@ void halt() {
 }
 
 static char command[160];
+static bool ignore_next_lf = false;
 
 // For power saving
 unsigned long POWERSAVING_FIRSTSLEEP_SECS = 120; // The first sleep (if enabled) from boot
@@ -103,22 +104,34 @@ void setup() {
 
 void loop() {
   int len = strlen(command);
+  bool line_complete = false;
   while (Serial.available() && len < sizeof(command)-1) {
     char c = Serial.read();
-    if (c != '\n') {
-      command[len++] = c;
-      command[len] = 0;
-      Serial.print(c);
+
+    if (ignore_next_lf && c == '\n') {
+      ignore_next_lf = false;
+      continue;
     }
-    if (c == '\r') break;
-  }
-  if (len == sizeof(command)-1) {  // command buffer full
-    command[sizeof(command)-1] = '\r';
+    ignore_next_lf = false;
+
+    if (c == '\r' || c == '\n') {
+      ignore_next_lf = (c == '\r');
+      line_complete = true;
+      break;
+    }
+
+    command[len++] = c;
+    command[len] = 0;
+    Serial.print(c);
   }
 
-  if (len > 0 && command[len - 1] == '\r') {  // received complete line
+  if (len == sizeof(command)-1) {  // command buffer full
+    line_complete = true;
+  }
+
+  if (line_complete) {  // received complete line
     Serial.print('\n');
-    command[len - 1] = 0;  // replace newline with C string null terminator
+    command[len] = 0;
     char reply[160];
     the_mesh.handleCommand(0, command, reply);  // NOTE: there is no sender_timestamp via serial!
     if (reply[0]) {
