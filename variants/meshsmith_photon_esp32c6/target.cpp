@@ -17,12 +17,15 @@ ESP32RTCClock fallback_clock;
 AutoDiscoverRTCClock rtc_clock(fallback_clock);
 
 #if ENV_INCLUDE_GPS
+  #ifndef GPS_SERIAL
+    #define GPS_SERIAL Serial1
+  #endif
   #include <helpers/sensors/MicroNMEALocationProvider.h>
   #if defined(MESHSMITH_PHOTON_ATGM336H_GPS) && MESHSMITH_PHOTON_ATGM336H_GPS
     #include "ATGM336HLocationProvider.h"
-    ATGM336HLocationProvider nmea = ATGM336HLocationProvider(Serial1, &rtc_clock);
+    ATGM336HLocationProvider nmea = ATGM336HLocationProvider(GPS_SERIAL, &rtc_clock);
   #else
-    MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock);
+    MicroNMEALocationProvider nmea = MicroNMEALocationProvider(GPS_SERIAL, &rtc_clock);
   #endif
   PhotonSensorManager sensors = PhotonSensorManager(nmea);
 #else
