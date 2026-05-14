@@ -18,12 +18,9 @@ AutoDiscoverRTCClock rtc_clock(fallback_clock);
 
 #if ENV_INCLUDE_GPS
   #include <helpers/sensors/MicroNMEALocationProvider.h>
-  #if MESHSMITH_PHOTON_ATGM336H_GPS
+  #if defined(MESHSMITH_PHOTON_ATGM336H_GPS) && MESHSMITH_PHOTON_ATGM336H_GPS
     #include "ATGM336HLocationProvider.h"
     ATGM336HLocationProvider nmea = ATGM336HLocationProvider(Serial1, &rtc_clock);
-  #elif MESHSMITH_PHOTON_LOW_ACTIVITY_GPS
-    #include "PhotonGPSLocationProvider.h"
-    PhotonGPSLocationProvider nmea = PhotonGPSLocationProvider(Serial1, &rtc_clock);
   #else
     MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock);
   #endif
