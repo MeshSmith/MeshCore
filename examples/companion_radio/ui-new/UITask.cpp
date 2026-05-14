@@ -2,8 +2,8 @@
 #include <helpers/TxtDataHelpers.h>
 #include "../MyMesh.h"
 #include "target.h"
-#ifdef WIFI_SSID
-  #include <WiFi.h>
+#if defined(WIFI_SSID) || defined(ETHERNET_COMPANION)
+  #include <helpers/esp32/CompanionNetwork.h>
 #endif
 
 #ifndef AUTO_OFF_MILLIS
@@ -209,8 +209,8 @@ public:
       sprintf(tmp, "MSG: %d", _task->getMsgCount());
       display.drawTextCentered(display.width() / 2, 20, tmp);
 
-      #ifdef WIFI_SSID
-        IPAddress ip = WiFi.localIP();
+      #if defined(WIFI_SSID) || defined(ETHERNET_COMPANION)
+        IPAddress ip = companion_network::localIP();
         snprintf(tmp, sizeof(tmp), "IP: %d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
         display.setTextSize(1);
         display.drawTextCentered(display.width() / 2, 54, tmp); 

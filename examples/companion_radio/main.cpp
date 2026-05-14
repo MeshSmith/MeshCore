@@ -35,9 +35,10 @@ static uint32_t _atoi(const char* sp) {
 #endif
 
 #ifdef ESP32
-  #ifdef WIFI_SSID
-    #include <helpers/esp32/SerialWifiInterface.h>
-    SerialWifiInterface serial_interface;
+  #if defined(WIFI_SSID) || defined(ETHERNET_COMPANION)
+    #include <helpers/esp32/SerialNetworkInterface.h>
+    #include <helpers/esp32/CompanionNetwork.h>
+    SerialNetworkInterface serial_interface;
     #ifndef TCP_PORT
       #define TCP_PORT 5000
     #endif
@@ -193,9 +194,9 @@ void setup() {
     #endif
   );
 
-#ifdef WIFI_SSID
+#if defined(WIFI_SSID) || defined(ETHERNET_COMPANION)
   board.setInhibitSleep(true);   // prevent sleep when WiFi is active
-  WiFi.begin(WIFI_SSID, WIFI_PWD);
+  companion_network::begin(the_mesh.getNodePrefs()->node_name);
   serial_interface.begin(TCP_PORT);
 #elif defined(BLE_PIN_CODE)
   serial_interface.begin(BLE_NAME_PREFIX, the_mesh.getNodePrefs()->node_name, the_mesh.getBLEPin());
@@ -225,6 +226,9 @@ void setup() {
 void loop() {
   the_mesh.loop();
   sensors.loop();
+#if defined(ESP32) && (defined(WIFI_SSID) || defined(ETHERNET_COMPANION))
+  companion_network::loop();
+#endif
 #ifdef DISPLAY_CLASS
   ui_task.loop();
 #endif
