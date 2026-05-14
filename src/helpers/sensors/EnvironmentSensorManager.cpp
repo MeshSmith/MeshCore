@@ -178,180 +178,18 @@ static RAK12500LocationProvider RAK12500_provider;
 #endif
 
 #if ENV_INCLUDE_GPS
-#if defined(GPS_UART_AUTODETECT) && GPS_UART_AUTODETECT && defined(ESP_PLATFORM)
-struct GPSUARTProbeResult {
-  bool saw_data;
-  bool saw_nmea;
-};
-
-struct GPSUARTPinPair {
-  int8_t rx;
-  int8_t tx;
-};
-
-static int8_t gps_uart_rx_pin = PIN_GPS_TX;
-static int8_t gps_uart_tx_pin = PIN_GPS_RX;
-static uint32_t gps_uart_baud_rate = GPS_BAUD_RATE;
-static bool gps_uart_seen_nmea = false;
-
-static bool gpsIsUpper(char c) {
-  return c >= 'A' && c <= 'Z';
-}
-
-static bool gpsFieldLooksLikeNMEA(const char* field, uint8_t len) {
-  if (len >= 5 && (field[0] == 'G' || field[0] == 'B') &&
-      gpsIsUpper(field[1]) && gpsIsUpper(field[2]) &&
-      gpsIsUpper(field[3]) && gpsIsUpper(field[4])) {
-    return true;
-  }
-  return len >= 4 && field[0] == 'P' && field[1] == 'C' &&
-      field[2] == 'A' && field[3] == 'S';
-}
-
-static GPSUARTProbeResult probeGPSUART(uint32_t timeout_ms) {
-  GPSUARTProbeResult result = { false, false };
-  char field[8];
-  uint8_t field_len = 0;
-  bool in_field = false;
-  uint32_t started = millis();
-
-  while ((uint32_t)(millis() - started) < timeout_ms) {
-    while (Serial1.available()) {
-      char c = (char)Serial1.read();
-      result.saw_data = true;
-
-      #ifdef GPS_NMEA_DEBUG
-      Serial.print(c);
-      #endif
-
-      if (c == '$') {
-        field_len = 0;
-        in_field = true;
-        continue;
-      }
-      if (!in_field) {
-        continue;
-      }
-      if (c == ',') {
-        if (gpsFieldLooksLikeNMEA(field, field_len)) {
-          result.saw_nmea = true;
-          return result;
-        }
-        in_field = false;
-        continue;
-      }
-      if (c < 32 || c > 126 || field_len >= sizeof(field)) {
-        in_field = false;
-        continue;
-      }
-      field[field_len++] = c;
-    }
-    delay(5);
-  }
-
-  return result;
-}
-
-static void startGPSUART(int8_t rx_pin, int8_t tx_pin, uint32_t baud_rate) {
-  Serial1.end();
-  delay(10);
-  Serial1.begin(baud_rate, SERIAL_8N1, rx_pin, tx_pin);
-  delay(20);
-  while (Serial1.available()) {
-    Serial1.read();
-  }
-}
-
-static bool gpsBaudAlreadyTried(const uint32_t* baud_rates, size_t index) {
-  for (size_t i = 0; i < index; i++) {
-    if (baud_rates[i] == baud_rates[index]) {
-      return true;
-    }
-  }
-  return false;
-}
-
-static bool detectGPSUART() {
-  static const uint32_t baud_rates[] = {
-    GPS_BAUD_RATE,
-    9600,
-    115200,
-    38400,
-    57600,
-    19200,
-    4800,
-  };
-  static const GPSUARTPinPair pin_pairs[] = {
-    { PIN_GPS_TX, PIN_GPS_RX },
-    #if defined(GPS_UART_AUTODETECT_PINS) && GPS_UART_AUTODETECT_PINS
-    { PIN_GPS_RX, PIN_GPS_TX },
-    #endif
-  };
-
-  GPSUARTPinPair best_data_pins = { PIN_GPS_TX, PIN_GPS_RX };
-  uint32_t best_data_baud = GPS_BAUD_RATE;
-  bool saw_any_data = false;
-
-  for (size_t pin_index = 0; pin_index < sizeof(pin_pairs) / sizeof(pin_pairs[0]); pin_index++) {
-    for (size_t baud_index = 0; baud_index < sizeof(baud_rates) / sizeof(baud_rates[0]); baud_index++) {
-      if (gpsBaudAlreadyTried(baud_rates, baud_index)) {
-        continue;
-      }
-
-      startGPSUART(pin_pairs[pin_index].rx, pin_pairs[pin_index].tx, baud_rates[baud_index]);
-      GPSUARTProbeResult probe = probeGPSUART(1100);
-
-      if (probe.saw_nmea) {
-        gps_uart_rx_pin = pin_pairs[pin_index].rx;
-        gps_uart_tx_pin = pin_pairs[pin_index].tx;
-        gps_uart_baud_rate = baud_rates[baud_index];
-        gps_uart_seen_nmea = true;
-        MESH_DEBUG_PRINTLN("GPS UART detected NMEA at %lu baud, RX pin %d, TX pin %d",
-            (unsigned long)gps_uart_baud_rate, gps_uart_rx_pin, gps_uart_tx_pin);
-        return true;
-      }
-
-      if (probe.saw_data && !saw_any_data) {
-        best_data_pins = pin_pairs[pin_index];
-        best_data_baud = baud_rates[baud_index];
-        saw_any_data = true;
-      }
-    }
-  }
-
-  gps_uart_rx_pin = best_data_pins.rx;
-  gps_uart_tx_pin = best_data_pins.tx;
-  gps_uart_baud_rate = best_data_baud;
-  gps_uart_seen_nmea = false;
-  startGPSUART(gps_uart_rx_pin, gps_uart_tx_pin, gps_uart_baud_rate);
-
-  if (saw_any_data) {
-    MESH_DEBUG_PRINTLN("GPS UART saw data but no valid NMEA, using %lu baud, RX pin %d, TX pin %d",
-        (unsigned long)gps_uart_baud_rate, gps_uart_rx_pin, gps_uart_tx_pin);
-  }
-
-  return false;
-}
+#ifndef GPS_SERIAL
+#define GPS_SERIAL Serial1
 #endif
 
 static void beginGPSUART() {
-  #if defined(GPS_UART_AUTODETECT) && GPS_UART_AUTODETECT && defined(ESP_PLATFORM)
-  if (!gps_uart_seen_nmea) {
-    detectGPSUART();
-  } else {
-    startGPSUART(gps_uart_rx_pin, gps_uart_tx_pin, gps_uart_baud_rate);
-  }
-  #elif defined(ESP_PLATFORM)
-  Serial1.begin(GPS_BAUD_RATE, SERIAL_8N1, PIN_GPS_TX, PIN_GPS_RX);
-  #else
-  Serial1.setPins(PIN_GPS_TX, PIN_GPS_RX);
-  Serial1.begin(GPS_BAUD_RATE);
-  #endif
+  GPS_SERIAL.setPins(PIN_GPS_TX, PIN_GPS_RX);
+  GPS_SERIAL.begin(GPS_BAUD_RATE);
 }
 
 static void endGPSUART() {
 #if GPS_SERIAL_SUSPEND_WHEN_STOPPED
-  Serial1.end();
+  GPS_SERIAL.end();
 #endif
 }
 #endif
@@ -822,13 +660,11 @@ void EnvironmentSensorManager::initBasicGPS() {
   // Give GPS a moment to power up and send data
   delay(1000);
 
-  // We'll consider GPS detected if we see any data on Serial1
+  // We'll consider GPS detected if we see any data on the configured GPS serial.
 #ifdef ENV_SKIP_GPS_DETECT
   gps_detected = true;
-#elif defined(GPS_UART_AUTODETECT) && GPS_UART_AUTODETECT && defined(ESP_PLATFORM)
-  gps_detected = gps_uart_seen_nmea;
 #else
-  gps_detected = (Serial1.available() > 0);
+  gps_detected = (GPS_SERIAL.available() > 0);
 #endif
 
   if (gps_detected) {
@@ -848,12 +684,12 @@ void EnvironmentSensorManager::initBasicGPS() {
 #ifdef RAK_WISBLOCK_GPS
 void EnvironmentSensorManager::rakGPSInit(){
 
-  Serial1.setPins(PIN_GPS_TX, PIN_GPS_RX);
+  GPS_SERIAL.setPins(PIN_GPS_TX, PIN_GPS_RX);
 
   #ifdef GPS_BAUD_RATE
-  Serial1.begin(GPS_BAUD_RATE);
+  GPS_SERIAL.begin(GPS_BAUD_RATE);
   #else
-  Serial1.begin(9600);
+  GPS_SERIAL.begin(9600);
   #endif
 
   //search for the correct IO standby pin depending on socket used
@@ -873,7 +709,7 @@ void EnvironmentSensorManager::rakGPSInit(){
     MESH_DEBUG_PRINTLN("No GPS found");
     gps_active = false;
     gps_detected = false;
-    Serial1.end();
+    GPS_SERIAL.end();
     return;
   }
 
@@ -912,7 +748,7 @@ bool EnvironmentSensorManager::gpsIsAwake(uint8_t ioPin){
 
     _location = &RAK12500_provider;
     return true;
-  } else if (Serial1.available()) {
+  } else if (GPS_SERIAL.available()) {
     MESH_DEBUG_PRINTLN("Serial GPS init correctly and is turned on");
     if(PIN_GPS_EN){
       gpsResetPin = PIN_GPS_EN;
