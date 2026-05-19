@@ -352,6 +352,28 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, char* command, char* re
       sprintf(reply, "%s (Build: %s)", _callbacks->getFirmwareVer(), _callbacks->getBuildDate());
     } else if (memcmp(command, "board", 5) == 0) {
       sprintf(reply, "%s", _board->getManufacturerName());
+    } else if (strcmp(command, "antenna") == 0) {
+      bool external = false;
+      if (_board->getWirelessAntennaExternal(external)) {
+        sprintf(reply, "wifi/ble antenna: %s", external ? "external" : "internal");
+      } else {
+        strcpy(reply, "antenna switch not supported");
+      }
+    } else if (memcmp(command, "antenna ", 8) == 0) {
+      const char* mode = command + 8;
+      bool external = false;
+      if (strcmp(mode, "external") == 0 || strcmp(mode, "ext") == 0) {
+        external = true;
+      } else if (strcmp(mode, "internal") != 0 && strcmp(mode, "int") != 0) {
+        strcpy(reply, "usage: antenna internal|external");
+        return;
+      }
+
+      if (_board->setWirelessAntennaExternal(external)) {
+        sprintf(reply, "wifi/ble antenna: %s", external ? "external" : "internal");
+      } else {
+        strcpy(reply, "antenna switch not supported");
+      }
     } else if (memcmp(command, "sensor get ", 11) == 0) {
       const char* key = command + 11;
       const char* val = _sensors->getSettingByKey(key);

@@ -2031,6 +2031,29 @@ void MyMesh::checkCLIRescueCmd() {
       } else {
         Serial.println("  Error: erase failed");
       }
+    } else if (strcmp(cli_command, "antenna") == 0) {
+      bool external = false;
+      if (board.getWirelessAntennaExternal(external)) {
+        Serial.printf("  > wifi/ble antenna: %s\n", external ? "external" : "internal");
+      } else {
+        Serial.println("  Error: antenna switch not supported");
+      }
+    } else if (memcmp(cli_command, "antenna ", 8) == 0) {
+      const char* mode = cli_command + 8;
+      bool external = false;
+      if (strcmp(mode, "external") == 0 || strcmp(mode, "ext") == 0) {
+        external = true;
+      } else if (strcmp(mode, "internal") != 0 && strcmp(mode, "int") != 0) {
+        Serial.println("  Usage: antenna internal|external");
+        cli_command[0] = 0;
+        return;
+      }
+
+      if (board.setWirelessAntennaExternal(external)) {
+        Serial.printf("  > wifi/ble antenna: %s\n", external ? "external" : "internal");
+      } else {
+        Serial.println("  Error: antenna switch not supported");
+      }
     } else if (memcmp(cli_command, "ls", 2) == 0) {
 
       // get path from command e.g: "ls /adafruit"

@@ -56,6 +56,9 @@ public:
   virtual void sleep(uint32_t secs)  { /* no op */ }
   virtual uint32_t getGpio() { return 0; }
   virtual void setGpio(uint32_t values) {}
+  virtual bool hasWirelessAntennaSwitch() const { return false; }
+  virtual bool getWirelessAntennaExternal(bool& external) const { return false; }
+  virtual bool setWirelessAntennaExternal(bool external) { return false; }
   virtual uint8_t getStartupReason() const = 0;
   virtual bool getBootloaderVersion(char* version, size_t max_len) { return false; }
   virtual bool startOTAUpdate(const char* id, char reply[]) { return false; }   // not supported

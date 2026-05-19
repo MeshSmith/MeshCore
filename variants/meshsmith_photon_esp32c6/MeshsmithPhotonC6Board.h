@@ -27,6 +27,9 @@ class MeshsmithPhotonC6Board : public ESP32Board {
 
 public:
   void begin();
+  bool hasWirelessAntennaSwitch() const override { return true; }
+  bool getWirelessAntennaExternal(bool& external) const override;
+  bool setWirelessAntennaExternal(bool external) override;
 
   uint16_t getBattMilliVolts() override {
     // MAX17048 VCELL uses 78.125uV LSB units.
