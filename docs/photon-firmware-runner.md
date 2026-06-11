@@ -1,6 +1,6 @@
 # Photon Firmware Runner
 
-The `Build Photon Firmwares` workflow builds the MeshSmith Photon ESP32-C6 firmware variants on a self-hosted Linux GitHub Actions runner.
+The `Build Photon Firmwares` workflow builds the MeshSmith Photon nRF52 and ESP32-C6 firmware variants on a self-hosted Linux GitHub Actions runner.
 
 ## Runner Labels
 
@@ -16,10 +16,22 @@ GitHub automatically adds `self-hosted` and the operating-system label. Add `pho
 
 Run `.github/workflows/build-photon-firmwares.yml` manually from the Actions tab. The optional `firmware_version` input controls the artifact filenames. If it is omitted, the workflow falls back to the latest tag and then to `manual-<sha>`.
 
-By default, each successful build also publishes a GitHub Release. The release tag defaults to `photon-esp32-c6-<branch>-<version>`, so builds from separate Photon ESP32-C6 release branches do not collide. Override `release_tag` or disable `publish_release` from the manual workflow form when needed.
+By default, each successful build also publishes a GitHub Release. The release tag defaults to `photon-<branch>-<version>`, so builds from separate Photon release branches do not collide. Override `release_tag` or disable `publish_release` from the manual workflow form when needed.
 
-The workflow targets the `meshsmith_photon_esp32c6...` PlatformIO environments and uploads BIN and merged BIN artifacts from `out/`:
+The workflow targets the `meshsmith_photon_nrf52...` and `meshsmith_photon_esp32c6...` PlatformIO environments and uploads artifacts from `out/`:
 
+- `Photon-nRF52-Companion-BLE-<version>.uf2`
+- `Photon-nRF52-Companion-BLE-<version>.zip`
+- `Photon-nRF52-Companion-USB-<version>.uf2`
+- `Photon-nRF52-Companion-USB-<version>.zip`
+- `Photon-nRF52-Repeater-<version>.uf2`
+- `Photon-nRF52-Repeater-<version>.zip`
+- `Photon-nRF52-Repeater-<version>-logging.uf2`
+- `Photon-nRF52-Repeater-<version>-logging.zip`
+- `Photon-nRF52-Room-Server-<version>.uf2`
+- `Photon-nRF52-Room-Server-<version>.zip`
+- `Photon-nRF52-Room-Server-<version>-logging.uf2`
+- `Photon-nRF52-Room-Server-<version>-logging.zip`
 - `Photon-ESP32-C6-Companion-BLE-<version>.bin`
 - `Photon-ESP32-C6-Companion-BLE-<version>-merged.bin`
 - `Photon-ESP32-C6-Companion-USB-<version>.bin`
@@ -32,9 +44,9 @@ The workflow targets the `meshsmith_photon_esp32c6...` PlatformIO environments a
 - `Photon-ESP32-C6-Room-Server-<version>-merged.bin`
 - `Photon-ESP32-C6-Room-Server-<version>-logging.bin`
 - `Photon-ESP32-C6-Room-Server-<version>-logging-merged.bin`
-- `photon-esp32-c6-firmware-manifest.json`
+- `photon-firmware-manifest.json`
 
-The manifest is intended for tools such as a web flasher. A flasher can query GitHub Releases, filter tags that start with `photon-esp32-c6-`, and read this manifest asset to display available firmware files.
+The manifest is intended for tools such as a web flasher. A flasher can query GitHub Releases, filter tags that start with `photon-`, and read this manifest asset to display available firmware files.
 
 ## Runner Host Notes
 
