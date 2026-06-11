@@ -14,6 +14,8 @@
 #include <Wire.h>
 #include "soc/rtc.h"
 #include "esp_system.h"
+#include <driver/gpio.h>
+#include <driver/rtc_io.h>
 
 class ESP32Board : public mesh::MainBoard {
 protected:
@@ -60,6 +62,29 @@ public:
     }
 
     return raw / 4;
+  }
+
+  void powerOff() override {
+    enterDeepSleep(0);
+  }
+
+  void enterDeepSleep(uint32_t secs) {
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+
+    if (secs > 0) {
+      esp_sleep_enable_timer_wakeup(secs * 1000000ULL);
+    }
+
+#ifdef P_LORA_NSS
+    digitalWrite(P_LORA_NSS, HIGH);
+#if CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32C6
+    gpio_hold_en((gpio_num_t)P_LORA_NSS);
+#else
+    rtc_gpio_hold_en((gpio_num_t)P_LORA_NSS);
+#endif
+#endif
+
+    esp_deep_sleep_start(); // CPU halts here and never returns
   }
 
   uint32_t getIRQGpio() override {
@@ -116,6 +141,8 @@ public:
       delay(1); // Give MCU to OTA to run
       return;
     }
+
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
 
     // Use more accurate clock in sleep
 #if SOC_RTC_SLOW_CLK_SUPPORT_RC_FAST_D256
@@ -217,21 +244,67 @@ public:
   void setInhibitSleep(bool inhibit) {
     inhibit_sleep = inhibit;
   }
+
+  uint32_t getResetReason() const override {
+    return esp_reset_reason();
+  }
+
+  const char *getResetReasonString(uint32_t reason) override {
+    switch (reason) {
+    case ESP_RST_UNKNOWN:
+      return "Unknown or first boot";
+    case ESP_RST_POWERON:
+      return "Power-on reset";
+    case ESP_RST_EXT:
+      return "External reset";
+    case ESP_RST_SW:
+      return "Software reset";
+    case ESP_RST_PANIC:
+      return "Panic / exception reset";
+    case ESP_RST_INT_WDT:
+      return "Interrupt watchdog reset";
+    case ESP_RST_TASK_WDT:
+      return "Task watchdog reset";
+    case ESP_RST_WDT:
+      return "Other watchdog reset";
+    case ESP_RST_DEEPSLEEP:
+      return "Wake from deep sleep";
+    case ESP_RST_BROWNOUT:
+      return "Brownout reset";
+    case ESP_RST_SDIO:
+      return "SDIO reset";
+    default:
+      static char buf[40];
+      snprintf(buf, sizeof(buf), "Unknown reset reason (%d)", (int)reason);
+      return buf;
+    }
+  }
 };
+
+static RTC_NOINIT_ATTR uint32_t _rtc_backup_time;
+static RTC_NOINIT_ATTR uint32_t _rtc_backup_magic;
+#define RTC_BACKUP_MAGIC  0xAA55CC33
+#define RTC_TIME_MIN      1772323200  // 1 Mar 2026
 
 class ESP32RTCClock : public mesh::RTCClock {
 public:
   ESP32RTCClock() { }
   void begin() {
     esp_reset_reason_t reason = esp_reset_reason();
-    if (reason == ESP_RST_POWERON) {
-      // start with some date/time in the recent past
-      struct timeval tv;
-      tv.tv_sec = 1715770351;  // 15 May 2024, 8:50pm
+    if (reason == ESP_RST_DEEPSLEEP) {
+      return; // ESP-IDF preserves system time across deep sleep
+    }
+
+    struct timeval tv;
+    if (_rtc_backup_magic == RTC_BACKUP_MAGIC && _rtc_backup_time > RTC_TIME_MIN) {
+      tv.tv_sec = _rtc_backup_time;
+    } else {
+      tv.tv_sec = RTC_TIME_MIN;
+    }
     tv.tv_usec = 0;
     settimeofday(&tv, NULL);
   }
-  }
+
   uint32_t getCurrentTime() override {
     time_t _now;
     time(&_now);
@@ -242,6 +315,17 @@ public:
     tv.tv_sec = time;
     tv.tv_usec = 0;
     settimeofday(&tv, NULL);
+    _rtc_backup_time = time;
+    _rtc_backup_magic = RTC_BACKUP_MAGIC;
+  }
+
+  void tick() override {
+    time_t now;
+    time(&now);
+    if (now > RTC_TIME_MIN && (uint32_t)now != _rtc_backup_time) {
+      _rtc_backup_time = (uint32_t)now;
+      _rtc_backup_magic = RTC_BACKUP_MAGIC;
+    }
   }
 };
 

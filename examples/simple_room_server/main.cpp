@@ -17,6 +17,7 @@ void halt() {
 }
 
 static char command[MAX_POST_TEXT_LEN+1];
+static const unsigned long POWERSAVING_FIRSTSLEEP_SECS = 120; // first sleep from boot
 
 void setup() {
   Serial.begin(115200);
@@ -116,4 +117,14 @@ void loop() {
   ui_task.loop();
 #endif
   rtc_clock.tick();
+
+  if (the_mesh.getNodePrefs()->powersaving_enabled && !the_mesh.hasPendingWork()) {
+#if defined(NRF52_PLATFORM)
+    board.sleep(0); // nrf ignores seconds param, sleeps whenever possible
+#else
+    if (the_mesh.millisHasNowPassed(POWERSAVING_FIRSTSLEEP_SECS * 1000)) {
+      board.sleep(30);
+    }
+#endif
+  }
 }
