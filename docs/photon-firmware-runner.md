@@ -16,7 +16,12 @@ GitHub automatically adds `self-hosted` and the operating-system label. Add `pho
 
 Run `.github/workflows/build-photon-firmwares.yml` manually from the Actions tab. The optional `firmware_version` input controls the artifact filenames. If it is omitted, the workflow falls back to the latest tag and then to `manual-<sha>`.
 
-By default, each successful build also publishes a GitHub Release. The release tag defaults to `photon-<branch>-<version>`, so builds from separate Photon release branches do not collide. Override `release_tag` or disable `publish_release` from the manual workflow form when needed.
+By default, each successful build publishes two GitHub Releases:
+
+- nRF52: `photon-nrf52-<branch>-<version>`
+- ESP32-C6: `photon-esp32-c6-<branch>-<version>`
+
+Override `release_tag` to set a shared base tag, which the workflow publishes as `<release_tag>-nrf52` and `<release_tag>-esp32-c6`. Override `release_name` to set a shared base title, which the workflow publishes with `nRF52` and `ESP32-C6` appended. Disable `publish_release` from the manual workflow form when needed.
 
 The workflow targets the `meshsmith_photon_nrf52...` and `meshsmith_photon_esp32c6...` PlatformIO environments and uploads artifacts from `out/`:
 
@@ -44,9 +49,10 @@ The workflow targets the `meshsmith_photon_nrf52...` and `meshsmith_photon_esp32
 - `Photon-ESP32-C6-Room-Server-<version>-merged.bin`
 - `Photon-ESP32-C6-Room-Server-<version>-logging.bin`
 - `Photon-ESP32-C6-Room-Server-<version>-logging-merged.bin`
-- `photon-firmware-manifest.json`
+- `photon-nrf52-firmware-manifest.json`
+- `photon-esp32-c6-firmware-manifest.json`
 
-The manifest is intended for tools such as a web flasher. A flasher can query GitHub Releases, filter tags that start with `photon-`, and read this manifest asset to display available firmware files.
+The manifests are intended for tools such as a web flasher. A flasher can query GitHub Releases, filter tags that start with `photon-nrf52-` or `photon-esp32-c6-`, and read the matching manifest asset to display available firmware files.
 
 ## Runner Host Notes
 

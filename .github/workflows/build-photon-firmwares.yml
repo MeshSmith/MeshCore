@@ -13,11 +13,11 @@ on:
         default: true
         type: boolean
       release_tag:
-        description: "Optional release tag. Defaults to photon-<branch>-<version>"
+        description: "Optional release tag base. Defaults to photon-<mcu>-<branch>-<version>"
         required: false
         type: string
       release_name:
-        description: "Optional release title"
+        description: "Optional release title base"
         required: false
         type: string
 
@@ -74,21 +74,29 @@ jobs:
           version_slug="$(sanitize_slug "${FIRMWARE_VERSION}")"
 
           if [ -n "${RELEASE_TAG_INPUT}" ]; then
-            release_tag="${RELEASE_TAG_INPUT}"
+            nrf52_release_tag="${RELEASE_TAG_INPUT}-nrf52"
+            esp32c6_release_tag="${RELEASE_TAG_INPUT}-esp32-c6"
           else
-            release_tag="photon-${ref_slug}-${version_slug}"
+            nrf52_release_tag="photon-nrf52-${ref_slug}-${version_slug}"
+            esp32c6_release_tag="photon-esp32-c6-${ref_slug}-${version_slug}"
           fi
 
           if [ -n "${RELEASE_NAME_INPUT}" ]; then
-            release_name="${RELEASE_NAME_INPUT}"
+            nrf52_release_name="${RELEASE_NAME_INPUT} nRF52"
+            esp32c6_release_name="${RELEASE_NAME_INPUT} ESP32-C6"
           else
-            release_name="Photon ${GITHUB_REF_NAME:-manual} ${FIRMWARE_VERSION}"
+            nrf52_release_name="Photon nRF52 ${GITHUB_REF_NAME:-manual} ${FIRMWARE_VERSION}"
+            esp32c6_release_name="Photon ESP32-C6 ${GITHUB_REF_NAME:-manual} ${FIRMWARE_VERSION}"
           fi
 
-          echo "RELEASE_TAG=${release_tag}" >> "${GITHUB_ENV}"
-          echo "RELEASE_NAME=${release_name}" >> "${GITHUB_ENV}"
-          echo "Using release tag: ${release_tag}"
-          echo "Using release name: ${release_name}"
+          echo "NRF52_RELEASE_TAG=${nrf52_release_tag}" >> "${GITHUB_ENV}"
+          echo "NRF52_RELEASE_NAME=${nrf52_release_name}" >> "${GITHUB_ENV}"
+          echo "ESP32C6_RELEASE_TAG=${esp32c6_release_tag}" >> "${GITHUB_ENV}"
+          echo "ESP32C6_RELEASE_NAME=${esp32c6_release_name}" >> "${GITHUB_ENV}"
+          echo "Using nRF52 release tag: ${nrf52_release_tag}"
+          echo "Using nRF52 release name: ${nrf52_release_name}"
+          echo "Using ESP32-C6 release tag: ${esp32c6_release_tag}"
+          echo "Using ESP32-C6 release name: ${esp32c6_release_name}"
 
       - name: Build Photon Firmwares
         shell: bash
@@ -96,12 +104,14 @@ jobs:
           FIRMWARE_VERSION: ${{ env.FIRMWARE_VERSION }}
         run: /usr/bin/env bash scripts/build-photon-firmwares.sh
 
-      - name: Generate Release Manifest
+      - name: Generate Release Manifests
         shell: bash
         env:
           FIRMWARE_VERSION: ${{ env.FIRMWARE_VERSION }}
-          RELEASE_TAG: ${{ env.RELEASE_TAG }}
-          RELEASE_NAME: ${{ env.RELEASE_NAME }}
+          NRF52_RELEASE_TAG: ${{ env.NRF52_RELEASE_TAG }}
+          NRF52_RELEASE_NAME: ${{ env.NRF52_RELEASE_NAME }}
+          ESP32C6_RELEASE_TAG: ${{ env.ESP32C6_RELEASE_TAG }}
+          ESP32C6_RELEASE_NAME: ${{ env.ESP32C6_RELEASE_NAME }}
         run: |
           python3 - <<'PY'
           import hashlib
@@ -110,32 +120,49 @@ jobs:
           from pathlib import Path
 
           out_dir = Path("out")
-          files = []
 
-          for path in sorted(out_dir.iterdir()):
-              if not path.is_file():
-                  continue
-              files.append({
-                  "name": path.name,
-                  "size": path.stat().st_size,
-                  "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-              })
+          def collect_assets(prefix):
+              files = []
+              for path in sorted(out_dir.iterdir()):
+                  if not path.is_file() or not path.name.startswith(prefix):
+                      continue
+                  files.append({
+                      "name": path.name,
+                      "size": path.stat().st_size,
+                      "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                  })
+              return files
 
-          manifest = {
-              "product": "MeshSmith Photon",
-              "mcus": ["nRF52", "ESP32-C6"],
-              "firmware_version": os.environ["FIRMWARE_VERSION"],
-              "release_tag": os.environ["RELEASE_TAG"],
-              "release_name": os.environ["RELEASE_NAME"],
-              "ref_name": os.environ.get("GITHUB_REF_NAME", ""),
-              "sha": os.environ.get("GITHUB_SHA", ""),
-              "repository": os.environ.get("GITHUB_REPOSITORY", ""),
-              "assets": files,
-          }
+          def write_manifest(filename, mcu, release_tag, release_name, assets):
+              manifest = {
+                  "product": "MeshSmith Photon",
+                  "mcu": mcu,
+                  "firmware_version": os.environ["FIRMWARE_VERSION"],
+                  "release_tag": release_tag,
+                  "release_name": release_name,
+                  "ref_name": os.environ.get("GITHUB_REF_NAME", ""),
+                  "sha": os.environ.get("GITHUB_SHA", ""),
+                  "repository": os.environ.get("GITHUB_REPOSITORY", ""),
+                  "assets": assets,
+              }
+              manifest_path = out_dir / filename
+              manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+              print(f"Wrote {manifest_path}")
 
-          manifest_path = out_dir / "photon-firmware-manifest.json"
-          manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-          print(f"Wrote {manifest_path}")
+          write_manifest(
+              "photon-nrf52-firmware-manifest.json",
+              "nRF52",
+              os.environ["NRF52_RELEASE_TAG"],
+              os.environ["NRF52_RELEASE_NAME"],
+              collect_assets("Photon-nRF52-"),
+          )
+          write_manifest(
+              "photon-esp32-c6-firmware-manifest.json",
+              "ESP32-C6",
+              os.environ["ESP32C6_RELEASE_TAG"],
+              os.environ["ESP32C6_RELEASE_NAME"],
+              collect_assets("Photon-ESP32-C6-"),
+          )
           PY
 
       - name: Upload Workflow Artifacts
@@ -145,19 +172,42 @@ jobs:
           path: out/*
           if-no-files-found: error
 
-      - name: Publish GitHub Release
+      - name: Publish nRF52 GitHub Release
         if: ${{ inputs.publish_release }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: ${{ env.RELEASE_NAME }}
+          tag_name: ${{ env.NRF52_RELEASE_TAG }}
+          name: ${{ env.NRF52_RELEASE_NAME }}
           target_commitish: ${{ github.sha }}
           make_latest: false
-          files: out/*
+          files: |
+            out/Photon-nRF52-*
+            out/photon-nrf52-firmware-manifest.json
           fail_on_unmatched_files: true
           overwrite_files: true
           body: |
-            MeshSmith Photon firmware build.
+            MeshSmith Photon nRF52 firmware build.
+
+            - Firmware version: `${{ env.FIRMWARE_VERSION }}`
+            - Source ref: `${{ github.ref_name }}`
+            - Commit: `${{ github.sha }}`
+            - Runner label: `photon-firmware`
+
+      - name: Publish ESP32-C6 GitHub Release
+        if: ${{ inputs.publish_release }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.ESP32C6_RELEASE_TAG }}
+          name: ${{ env.ESP32C6_RELEASE_NAME }}
+          target_commitish: ${{ github.sha }}
+          make_latest: false
+          files: |
+            out/Photon-ESP32-C6-*
+            out/photon-esp32-c6-firmware-manifest.json
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          body: |
+            MeshSmith Photon ESP32-C6 firmware build.
 
             - Firmware version: `${{ env.FIRMWARE_VERSION }}`
             - Source ref: `${{ github.ref_name }}`
