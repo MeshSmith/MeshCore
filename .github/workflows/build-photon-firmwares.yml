@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       firmware_version:
-        description: "Version used in artifact filenames, for example v1.15.0"
+        description: "Optional version used in artifact filenames. Defaults from the selected branch/tag, for example v1.16.0"
         required: false
         type: string
       publish_release:
@@ -13,11 +13,11 @@ on:
         default: true
         type: boolean
       release_tag:
-        description: "Optional release tag base. Defaults to photon-<mcu>-<branch>-<version>"
+        description: "Optional release tag base. Defaults to photon-<mcu>[-powersaving]-<version>"
         required: false
         type: string
       release_name:
-        description: "Optional release title base"
+        description: "Optional release title base. Defaults to Photon <mcu> [PowerSaving] <version>"
         required: false
         type: string
 
@@ -43,12 +43,41 @@ jobs:
       - name: Resolve Firmware Version
         shell: bash
         run: |
+          extract_version() {
+            local value="$1"
+            local normalized
+            local semver_regex='(^|[^0-9])v([0-9]+)\.([0-9]+)(\.([0-9]+))?([^0-9]|$)'
+            local shorthand_regex='(^|[^0-9])v([0-9]{2})([^0-9]|$)'
+            normalized="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')"
+
+            if [[ "${normalized}" =~ ${semver_regex} ]]; then
+              local patch="${BASH_REMATCH[5]:-0}"
+              printf 'v%s.%s.%s\n' "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${patch}"
+              return 0
+            fi
+
+            if [[ "${normalized}" =~ ${shorthand_regex} ]]; then
+              printf 'v1.%s.0\n' "${BASH_REMATCH[2]}"
+              return 0
+            fi
+
+            return 1
+          }
+
           if [ -n "${{ inputs.firmware_version }}" ]; then
             version="${{ inputs.firmware_version }}"
           elif [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
-            version="${GITHUB_REF#refs/tags/}"
+            tag="${GITHUB_REF#refs/tags/}"
+            version="$(extract_version "${tag}" || true)"
+            if [ -z "${version}" ]; then
+              version="${tag}"
+            fi
           else
-            version="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+            version="$(extract_version "${GITHUB_REF_NAME:-}" || true)"
+            if [ -z "${version}" ]; then
+              described_tag="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
+              version="$(extract_version "${described_tag}" || true)"
+            fi
           fi
 
           if [ -z "${version}" ]; then
@@ -70,23 +99,46 @@ jobs:
               | sed -e 's/^-*//' -e 's/-*$//' -e 's/--*/-/g'
           }
 
-          ref_slug="$(sanitize_slug "${GITHUB_REF_NAME:-manual}")"
+          resolve_channel_slug() {
+            local normalized
+            normalized="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+            if [[ "${normalized}" == *powersaving* || "${normalized}" == *power-saving* || "${normalized}" == *power_saving* ]]; then
+              printf 'powersaving'
+            fi
+          }
+
+          resolve_channel_label() {
+            case "$1" in
+              powersaving) printf 'PowerSaving' ;;
+            esac
+          }
+
+          channel_slug="$(resolve_channel_slug "${GITHUB_REF_NAME:-}")"
+          channel_label="$(resolve_channel_label "${channel_slug}")"
+          channel_tag_suffix=""
+          if [ -n "${channel_slug}" ]; then
+            channel_tag_suffix="-${channel_slug}"
+          fi
+
           version_slug="$(sanitize_slug "${FIRMWARE_VERSION}")"
 
           if [ -n "${RELEASE_TAG_INPUT}" ]; then
             nrf52_release_tag="${RELEASE_TAG_INPUT}-nrf52"
             esp32c6_release_tag="${RELEASE_TAG_INPUT}-esp32-c6"
           else
-            nrf52_release_tag="photon-nrf52-${ref_slug}-${version_slug}"
-            esp32c6_release_tag="photon-esp32-c6-${ref_slug}-${version_slug}"
+            nrf52_release_tag="photon-nrf52${channel_tag_suffix}-${version_slug}"
+            esp32c6_release_tag="photon-esp32-c6${channel_tag_suffix}-${version_slug}"
           fi
 
           if [ -n "${RELEASE_NAME_INPUT}" ]; then
             nrf52_release_name="${RELEASE_NAME_INPUT} nRF52"
             esp32c6_release_name="${RELEASE_NAME_INPUT} ESP32-C6"
+          elif [ -n "${channel_label}" ]; then
+            nrf52_release_name="Photon nRF52 ${channel_label} ${FIRMWARE_VERSION}"
+            esp32c6_release_name="Photon ESP32-C6 ${channel_label} ${FIRMWARE_VERSION}"
           else
-            nrf52_release_name="Photon nRF52 ${GITHUB_REF_NAME:-manual} ${FIRMWARE_VERSION}"
-            esp32c6_release_name="Photon ESP32-C6 ${GITHUB_REF_NAME:-manual} ${FIRMWARE_VERSION}"
+            nrf52_release_name="Photon nRF52 ${FIRMWARE_VERSION}"
+            esp32c6_release_name="Photon ESP32-C6 ${FIRMWARE_VERSION}"
           fi
 
           echo "NRF52_RELEASE_TAG=${nrf52_release_tag}" >> "${GITHUB_ENV}"
