@@ -173,6 +173,10 @@ static RAK12035_SoilMoisture RAK12035;
 #define RAK_WISBLOCK_GPS
 #endif
 
+#ifndef ENV_SKIP_I2C_SENSOR_SCAN
+#define ENV_SKIP_I2C_SENSOR_SCAN 0
+#endif
+
 #if ENV_INCLUDE_GPS
 #ifndef GPS_SERIAL_SUSPEND_WHEN_STOPPED
 #define GPS_SERIAL_SUSPEND_WHEN_STOPPED 0
@@ -679,6 +683,11 @@ bool EnvironmentSensorManager::begin() {
     #endif
   MESH_DEBUG_PRINTLN("Second I2C initialized on pins SDA: %d SCL: %d", ENV_PIN_SDA, ENV_PIN_SCL);
   #endif
+
+#if ENV_SKIP_I2C_SENSOR_SCAN
+  MESH_DEBUG_PRINTLN("I2C sensor scan disabled for this board");
+  return true;
+#endif
 
   // Scan the I2C bus before touching any sensor library.
   bool detected[128] = {};
