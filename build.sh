@@ -17,6 +17,7 @@ Commands:
   build-companion-firmwares: Build all companion firmwares for all build targets.
   build-repeater-firmwares: Build all repeater firmwares for all build targets.
   build-room-server-firmwares: Build all chat room server firmwares for all build targets.
+  build-photon-firmwares: Build all Meshsmith Photon firmwares.
 
 Examples:
 Build firmware for the "RAK_4631_repeater" device target
@@ -33,6 +34,9 @@ $ sh build.sh build-repeater-firmwares
 
 Build all chat room server firmwares
 $ sh build.sh build-room-server-firmwares
+
+Build all Meshsmith Photon firmwares
+$ sh build.sh build-photon-firmwares
 
 Environment Variables:
   DISABLE_DEBUG=1: Disables all debug logging flags (MESH_DEBUG, MESH_PACKET_LOGGING, etc.)
@@ -242,6 +246,24 @@ build_room_server_firmwares() {
 
 }
 
+get_photon_firmwares_to_build() {
+  cat - <<EOF
+meshsmith_photon_c6_repeater
+meshsmith_photon_c6_companion_radio_ble
+meshsmith_photon_c6_kiss_modem
+meshsmith_photon_nrf_repeater
+meshsmith_photon_nrf_companion_radio_ble
+meshsmith_photon_nrf_kiss_modem
+EOF
+}
+
+build_photon_firmwares() {
+  envs=($(get_photon_firmwares_to_build))
+  for env in "${envs[@]}"; do
+    build_firmware $env
+  done
+}
+
 build_firmwares() {
   build_companion_firmwares
   build_repeater_firmwares
@@ -278,6 +300,8 @@ elif [[ $1 == "build-repeater-firmwares" ]]; then
   build_repeater_firmwares
 elif [[ $1 == "build-room-server-firmwares" ]]; then
   build_room_server_firmwares
+elif [[ $1 == "build-photon-firmwares" ]]; then
+  build_photon_firmwares
 elif [[ $1 == "get-companion-firmwares-to-build" ]]; then
   get_pio_envs_ending_with_string "_companion_radio_usb"
   get_pio_envs_ending_with_string "_companion_radio_ble"
@@ -285,4 +309,6 @@ elif [[ $1 == "get-repeater-firmwares-to-build" ]]; then
   get_pio_envs_ending_with_string "_repeater"
 elif [[ $1 == "get-room-server-firmwares-to-build" ]]; then
   get_pio_envs_ending_with_string "_room_server"
+elif [[ $1 == "get-photon-firmwares-to-build" ]]; then
+  get_photon_firmwares_to_build
 fi
