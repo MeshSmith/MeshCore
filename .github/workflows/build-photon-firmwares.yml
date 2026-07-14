@@ -5,6 +5,11 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to create, for example photon-v1.0.0'
+        required: true
+        type: string
   push:
     tags:
       - 'photon-*'
@@ -15,3 +20,4 @@ jobs:
     with:
       firmware_type: 'photon'
       release_title_prefix: 'Photon Firmware'
+      release_tag: ${{ github.event.inputs.release_tag || '' }}

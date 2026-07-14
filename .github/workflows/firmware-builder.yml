@@ -9,6 +9,10 @@ on:
       release_title_prefix:
         required: true
         type: string
+      release_tag:
+        required: false
+        type: string
+        default: ''
 
 jobs:
 
@@ -54,8 +58,16 @@ jobs:
 
       - name: Build Firmware
         env:
-          FIRMWARE_VERSION: ${{ env.GIT_TAG_VERSION }}
-        run: /usr/bin/env bash build.sh build-firmware ${{ matrix.target }}
+          RELEASE_TAG_INPUT: ${{ inputs.release_tag }}
+        run: |
+          if [[ -n "$RELEASE_TAG_INPUT" ]]; then
+            FIRMWARE_VERSION="${RELEASE_TAG_INPUT##*-}"
+          else
+            FIRMWARE_VERSION="${GIT_TAG_VERSION}"
+          fi
+          export FIRMWARE_VERSION
+
+          /usr/bin/env bash build.sh build-firmware ${{ matrix.target }}
 
       - name: Upload Workflow Artifacts
         uses: actions/upload-artifact@v7
@@ -66,7 +78,7 @@ jobs:
   create-release:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') # only create release for tagged builds
+    if: startsWith(github.ref, 'refs/tags/') || inputs.release_tag != ''
     steps:
 
       - name: Clone Repo
@@ -81,10 +93,28 @@ jobs:
           merge-multiple: true
           path: out
 
+      - name: Resolve Release Metadata
+        id: release-metadata
+        shell: bash
+        env:
+          RELEASE_TAG_INPUT: ${{ inputs.release_tag }}
+        run: |
+          if [[ -n "$RELEASE_TAG_INPUT" ]]; then
+            RELEASE_TAG="$RELEASE_TAG_INPUT"
+            VERSION_STRING="${RELEASE_TAG_INPUT##*-}"
+          else
+            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+            VERSION_STRING="${GIT_TAG_VERSION}"
+          fi
+
+          echo "tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION_STRING" >> $GITHUB_OUTPUT
+
       - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
-          name: "${{ inputs.release_title_prefix }} ${{ env.GIT_TAG_VERSION }}"
+          tag_name: "${{ steps.release-metadata.outputs.tag }}"
+          name: "${{ inputs.release_title_prefix }} ${{ steps.release-metadata.outputs.version }}"
           body: ""
           draft: true
           files: out/*
